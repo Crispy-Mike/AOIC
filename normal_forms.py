@@ -42,14 +42,14 @@ class NormalForm:
         return self.truth_table.get_false_indices()
 
     def get_sdnf_index_form(self) -> str:
-        """Индексная форма СДНФ - столбец значений функции для наборов, где F=1."""
-        function_values = self.truth_table.get_function_values()
-        return f"sum({', '.join(map(str, function_values))})"
+        """Индексная форма СДНФ - номера наборов, где F=1."""
+        indices = self.truth_table.get_true_indices()
+        return f"sum({', '.join(map(str, indices))})"
 
     def get_sknf_index_form(self) -> str:
-        """Индексная форма СКНФ - столбец значений функции для наборов, где F=0."""
-        function_values = self.truth_table.get_function_values()
-        return f"prod({', '.join(map(str, function_values))})"
+        """Индексная форма СКНФ - номера наборов, где F=0."""
+        indices = self.truth_table.get_false_indices()
+        return f"prod({', '.join(map(str, indices))})"
 
     def get_function_index_form(self) -> str:
         """Индексная форма функции - просто столбец значений."""
