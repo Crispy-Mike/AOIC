@@ -137,56 +137,112 @@ class Minimization:
         ]
         history.append(f"Исходные минтермы: {[imp.to_string() for imp in current_implicants]}")
 
+        # Храним все "простые импликанты" (prime implicants)
+        all_prime = set()
         stage = 1
         while True:
             new_implicants = []
-            used = set()
+            used_indices = set()
+            seen_combinations = set()
+
             for i, imp1 in enumerate(current_implicants):
                 for j, imp2 in enumerate(current_implicants):
                     if i >= j:
                         continue
+                    pair = (i, j)
+                    if pair in seen_combinations:
+                        continue
                     if self._can_combine(imp1, imp2):
                         combined = self._combine_implicants(imp1, imp2)
-                        if combined not in new_implicants:
+                        # Проверяем уникальность
+                        key = tuple(combined.values)
+                        if not any(tuple(imp.values) == key for imp in new_implicants):
                             new_implicants.append(combined)
-                        used.add(i)
-                        used.add(j)
+                        used_indices.add(i)
+                        used_indices.add(j)
+                        seen_combinations.add(pair)
+
+            # Те, что не были использованы — простые импликанты
+            for idx, imp in enumerate(current_implicants):
+                if idx not in used_indices:
+                    all_prime.add(tuple(imp.values))
+
             if not new_implicants:
+                # Все текущие тоже простые
+                for imp in current_implicants:
+                    all_prime.add(tuple(imp.values))
                 break
+
             history.append(f"\nЭтап склеивания {stage}:")
             for imp in new_implicants:
                 history.append(f"  {imp.to_string()} ({imp.to_pattern()})")
             current_implicants = new_implicants
             stage += 1
 
-        unique_implicants = []
-        seen = set()
-        for imp in current_implicants:
-            key = tuple(imp.values)
-            if key not in seen:
-                seen.add(key)
-                unique_implicants.append(imp)
+        # Восстанавливаем Implicant из prime implicants
+        prime_implicants = []
+        for values_tuple in all_prime:
+            # Восстанавливаем minterms
+            implicant = Implicant(self.variables, list(values_tuple), [])
+            # Определяем какие минтермы покрываются
+            minterms = []
+            for mi in self.true_indices:
+                if self._implicant_covers_minterm(implicant, mi):
+                    minterms.append(mi)
+            implicant.minterms = set(minterms)
+            prime_implicants.append(implicant)
 
         history.append("\nПроверка на лишние импликанты:")
-        final_implicants = self._remove_redundant(unique_implicants, history)
+        final_implicants = self._find_minimal_cover(prime_implicants, history)
         return final_implicants, history
 
-    def _remove_redundant(self, implicants: List[Implicant], history: List[str]) -> List[Implicant]:
-        result = implicants.copy()
-        for imp in implicants:
-            others = [i for i in result if i != imp]
-            all_covered = True
-            for minterm in imp.minterms:
-                covered_by_others = any(i.covers(minterm) for i in others)
-                if not covered_by_others:
-                    all_covered = False
-                    break
-            if all_covered and len(others) > 0:
+    def _implicant_covers_minterm(self, imp: Implicant, minterm: int) -> bool:
+        """Проверяет, покрывает ли импликант данный минтерм."""
+        idx = minterm
+        for i in range(self.num_vars - 1, -1, -1):
+            bit = bool(idx & (1 << i))
+            val = imp.values[self.num_vars - 1 - i]
+            if val is not None and val != bit:
+                return False
+        return True
+
+    def _find_minimal_cover(self, prime_implicants: List[Implicant], history: List[str]) -> List[Implicant]:
+        """Находит минимальное покрытие с помощью существенных импликант."""
+        if not prime_implicants:
+            return []
+
+        # Находим существенно необходимые импликанты
+        essential = []
+        covered_minterms = set()
+
+        # Для каждого минтерма считаем сколько импликант его покрывают
+        for minterm in self.true_indices:
+            covering = [imp for imp in prime_implicants if minterm in imp.minterms]
+            if len(covering) == 1:
+                # Существенная импликанта
+                ess = covering[0]
+                if ess not in essential:
+                    essential.append(ess)
+                    history.append(f"  {ess.to_string()} - необходимая импликанта")
+                    covered_minterms.update(ess.minterms)
+
+        # Отмечаем необязательные
+        for imp in prime_implicants:
+            if imp not in essential:
                 history.append(f"  {imp.to_string()} - лишняя импликанта")
-                result.remove(imp)
-            else:
-                history.append(f"  {imp.to_string()} - необходимая импликанта")
-        return result
+
+        # Если не все покрыты — жадно добавляем
+        uncovered = [m for m in self.true_indices if m not in covered_minterms]
+        remaining = [imp for imp in prime_implicants if imp not in essential]
+
+        while uncovered:
+            best_imp = max(remaining, key=lambda imp: len(imp.minterms & set(uncovered)))
+            essential.append(best_imp)
+            covered_minterms.update(best_imp.minterms)
+            uncovered = [m for m in self.true_indices if m not in covered_minterms]
+            remaining.remove(best_imp)
+
+        return essential
 
     def minimize_calculated_table(self) -> Tuple[List[Implicant], str, List[str]]:
         history = []
@@ -505,7 +561,7 @@ class Minimization:
         """Минимизация КНФ расчетным методом (через нулевые наборы)."""
         history = []
         false_indices = self.truth_table.get_false_indices()
-        
+
         if not false_indices:
             history.append("Функция тождественно истинна, КНФ = 1")
             return [], history
@@ -515,38 +571,58 @@ class Minimization:
         ]
         history.append(f"Исходные макстермы: {[mt.to_string() for mt in current_maxterms]}")
 
+        # Храним все "простые импликанты" для КНФ
+        all_prime = set()
         stage = 1
         while True:
             new_maxterms = []
-            used = set()
+            used_indices = set()
+            seen_combinations = set()
+
             for i, mt1 in enumerate(current_maxterms):
                 for j, mt2 in enumerate(current_maxterms):
                     if i >= j:
                         continue
+                    pair = (i, j)
+                    if pair in seen_combinations:
+                        continue
                     if self._can_combine_maxterms(mt1, mt2):
                         combined = self._combine_maxterms(mt1, mt2)
-                        if combined not in new_maxterms:
+                        key = tuple(combined.values)
+                        if not any(tuple(mt.values) == key for mt in new_maxterms):
                             new_maxterms.append(combined)
-                        used.add(i)
-                        used.add(j)
+                        used_indices.add(i)
+                        used_indices.add(j)
+                        seen_combinations.add(pair)
+
+            for idx, mt in enumerate(current_maxterms):
+                if idx not in used_indices:
+                    all_prime.add(tuple(mt.values))
+
             if not new_maxterms:
+                for mt in current_maxterms:
+                    all_prime.add(tuple(mt.values))
                 break
+
             history.append(f"\nЭтап склеивания {stage}:")
             for mt in new_maxterms:
                 history.append(f"  {mt.to_string()} ({mt.to_pattern()})")
             current_maxterms = new_maxterms
             stage += 1
 
-        unique_maxterms = []
-        seen = set()
-        for mt in current_maxterms:
-            key = tuple(mt.values)
-            if key not in seen:
-                seen.add(key)
-                unique_maxterms.append(mt)
+        # Восстанавливаем Maxterm
+        prime_maxterms = []
+        for values_tuple in all_prime:
+            maxterm = Maxterm(self.variables, list(values_tuple), [])
+            maxterms_covered = []
+            for mi in false_indices:
+                if self._maxterm_covers_index(maxterm, mi):
+                    maxterms_covered.append(mi)
+            maxterm.maxterms = set(maxterms_covered)
+            prime_maxterms.append(maxterm)
 
         history.append("\nПроверка на лишние импликанты:")
-        final_maxterms = self._remove_redundant_maxterms(unique_maxterms, history)
+        final_maxterms = self._find_minimal_cnf_cover(prime_maxterms, history)
         return final_maxterms, history
 
     def _create_maxterm(self, index: int) -> Maxterm:
@@ -575,22 +651,49 @@ class Minimization:
         new_maxterms = list(mt1.maxterms | mt2.maxterms)
         return Maxterm(self.variables, new_values, new_maxterms)
 
-    def _remove_redundant_maxterms(self, maxterms: List[Maxterm], history: List[str]) -> List[Maxterm]:
-        result = maxterms.copy()
-        for mt in maxterms:
-            others = [m for m in result if m != mt]
-            all_covered = True
-            for maxterm in mt.maxterms:
-                covered_by_others = any(m.covers(maxterm) for m in others)
-                if not covered_by_others:
-                    all_covered = False
-                    break
-            if all_covered and len(others) > 0:
+    def _maxterm_covers_index(self, mt: Maxterm, index: int) -> bool:
+        """Проверяет, покрывает ли макстерм данный индекс."""
+        idx = index
+        for i in range(self.num_vars - 1, -1, -1):
+            bit = bool(idx & (1 << i))
+            val = mt.values[self.num_vars - 1 - i]
+            if val is not None and val != bit:
+                return False
+        return True
+
+    def _find_minimal_cnf_cover(self, prime_maxterms: List[Maxterm], history: List[str]) -> List[Maxterm]:
+        """Находит минимальное покрытие для КНФ."""
+        if not prime_maxterms:
+            return []
+
+        false_indices = self.truth_table.get_false_indices()
+        essential = []
+        covered_indices = set()
+
+        for index in false_indices:
+            covering = [mt for mt in prime_maxterms if index in mt.maxterms]
+            if len(covering) == 1:
+                ess = covering[0]
+                if ess not in essential:
+                    essential.append(ess)
+                    history.append(f"  {ess.to_string()} - необходимая импликанта")
+                    covered_indices.update(ess.maxterms)
+
+        for mt in prime_maxterms:
+            if mt not in essential:
                 history.append(f"  {mt.to_string()} - лишняя импликанта")
-                result.remove(mt)
-            else:
-                history.append(f"  {mt.to_string()} - необходимая импликанта")
-        return result
+
+        uncovered = [m for m in false_indices if m not in covered_indices]
+        remaining = [mt for mt in prime_maxterms if mt not in essential]
+
+        while uncovered:
+            best_mt = max(remaining, key=lambda mt: len(mt.maxterms & set(uncovered)))
+            essential.append(best_mt)
+            covered_indices.update(best_mt.maxterms)
+            uncovered = [m for m in false_indices if m not in covered_indices]
+            remaining.remove(best_mt)
+
+        return essential
 
     def minimize_cnf_calculated_table(self) -> Tuple[List[Maxterm], str, List[str]]:
         """Минимизация КНФ с таблицей покрытия."""

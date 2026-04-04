@@ -55,3 +55,9 @@ class NormalForm:
         """Индексная форма функции - просто столбец значений."""
         function_values = self.truth_table.get_function_values()
         return f"F = ({', '.join(map(str, function_values))})"
+
+    def get_function_vector_decimal(self) -> int:
+        """Десятичное представление вектора функции."""
+        function_values = self.truth_table.get_function_values()
+        binary_str = ''.join(map(str, function_values))
+        return int(binary_str, 2)

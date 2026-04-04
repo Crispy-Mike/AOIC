@@ -34,6 +34,7 @@ class BooleanFunctionAnalyzer:
             'sdnf_index': self.normal_forms.get_sdnf_index_form(),
             'sknf_index': self.normal_forms.get_sknf_index_form(),
             'function_index': self.normal_forms.get_function_index_form(),
+            'function_vector_decimal': self.normal_forms.get_function_vector_decimal(),
             'post_classes': self.post_classes.get_all_classes(),
             'post_display': self.post_classes.display(),
             'zhegalkin': self.zhegalkin.get_polynomial(),
@@ -82,6 +83,17 @@ class BooleanFunctionAnalyzer:
         lines.append(f"\nМинимизированная КНФ: {self.minimization.get_minimized_cnf(maxterms)}")
         return "\n".join(lines)
 
+    def _print_final_minimization(self, results: Dict[str, Any]) -> None:
+        """Вывод итоговых МДНФ и МКНФ."""
+        implicants, _ = self.minimization.minimize_calculated()
+        mdnf = self.minimization.get_minimized_dnf(implicants)
+
+        maxterms, _ = self.minimization.minimize_cnf_calculated()
+        mknf = self.minimization.get_minimized_cnf(maxterms)
+
+        print(f"МДНФ: {mdnf}")
+        print(f"МКНФ: {mknf}")
+
     def print_full_report(self) -> None:
         results = self.analyze()
 
@@ -108,6 +120,7 @@ class BooleanFunctionAnalyzer:
 
         print(f"\n5. Индексная форма функции:")
         print(f"   {results['function_index']}")
+        print(f"   Десятичное значение: {results['function_vector_decimal']}")
 
         print(f"\n6. {results['post_display']}")
 
@@ -133,6 +146,10 @@ class BooleanFunctionAnalyzer:
 
         print(f"\n14. Минимизация КНФ расчетно-табличным методом:")
         print(results['minimized_cnf_table'])
+
+        # Итоговые строки МДНФ и МКНФ
+        print(f"\n15. Итоговые результаты минимизации:")
+        self._print_final_minimization(results)
 
         print("\n" + "=" * 60)
 

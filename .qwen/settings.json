@@ -4,7 +4,11 @@
       "Bash(python *)",
       "Bash(b)",
       "Bash(!a)",
-      "Bash(!b)"
+      "Bash(!b)",
+      "Bash(echo)",
+      "Bash(!c)",
+      "Bash(.venv\\scripts\\python.exe *)",
+      "Bash(del *)"
     ]
   },
   "$version": 3

@@ -49,14 +49,14 @@ class TruthTable:
         return [row['index'] for row in self.get_false_rows()]
 
     def display(self) -> str:
-        header = " | ".join(self.variables) + " | F"
+        header = "\t".join(self.variables) + "\t| F"
         separator = "-" * len(header)
         lines = [header, separator]
         for row in self.rows:
-            values_str = " | ".join("1" if row['inputs'][var] else "0"
+            values_str = "\t".join("1" if row['inputs'][var] else "0"
                                    for var in self.variables)
             result_str = "1" if row['result'] else "0"
-            lines.append(f"{values_str} | {result_str}")
+            lines.append(f"{values_str}\t| {result_str}")
         return "\n".join(lines)
 
     def __len__(self) -> int:
