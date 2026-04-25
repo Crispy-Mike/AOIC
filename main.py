@@ -41,12 +41,20 @@ class BooleanFunctionAnalyzer:
             'zhegalkin_table': self.zhegalkin.display_table(),
             'dummy_variables': self.dummy_vars.display(),
             'partial_derivatives': self.derivatives.display_partial_derivatives(),
+            'mixed_derivatives': self._get_mixed_derivatives_display(),
             'minimized_dnf_calculated': self._minimize_dnf_calculated_full(),
             'minimized_dnf_table': self._minimize_dnf_table_full(),
             'minimized_dnf_karnaugh': self._minimize_dnf_karnaugh_full(),
             'minimized_cnf_calculated': self._minimize_cnf_calculated_full(),
             'minimized_cnf_table': self._minimize_cnf_table_full()
         }
+
+    def _get_mixed_derivatives_display(self) -> str:
+        """Вывод всех смешанных производных."""
+        lines = []
+        for order in range(2, min(5, self.derivatives.num_vars + 1)):
+            lines.append(self.derivatives.display_mixed_derivatives(order))
+        return "\n\n".join(lines)
 
     def _minimize_dnf_calculated_full(self) -> str:
         implicants, history = self.minimization.minimize_calculated()
@@ -131,24 +139,26 @@ class BooleanFunctionAnalyzer:
 
         print(f"\n9. Частные производные:")
         print(results['partial_derivatives'])
+        print(f"\n10. Смешанные производные:")
+        print(results['mixed_derivatives'])
 
-        print(f"\n10. Минимизация ДНФ расчетным методом:")
+        print(f"\n11. Минимизация ДНФ расчетным методом:")
         print(results['minimized_dnf_calculated'])
 
-        print(f"\n11. Минимизация ДНФ расчетно-табличным методом:")
+        print(f"\n12. Минимизация ДНФ расчетно-табличным методом:")
         print(results['minimized_dnf_table'])
 
-        print(f"\n12. Минимизация ДНФ картой Карно:")
+        print(f"\n13. Минимизация ДНФ картой Карно:")
         print(results['minimized_dnf_karnaugh'])
 
-        print(f"\n13. Минимизация КНФ расчетным методом:")
+        print(f"\n14. Минимизация КНФ расчетным методом:")
         print(results['minimized_cnf_calculated'])
 
-        print(f"\n14. Минимизация КНФ расчетно-табличным методом:")
+        print(f"\n15. Минимизация КНФ расчетно-табличным методом:")
         print(results['minimized_cnf_table'])
 
         # Итоговые строки МДНФ и МКНФ
-        print(f"\n15. Итоговые результаты минимизации:")
+        print(f"\n16. Итоговые результаты минимизации:")
         self._print_final_minimization(results)
 
         print("\n" + "=" * 60)
