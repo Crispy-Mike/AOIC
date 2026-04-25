@@ -25,6 +25,7 @@ venv/
 env/
 ENV/
 .venv
+.venv-*
 
 # IDE
 .idea/
@@ -58,3 +59,16 @@ coverage.xml
 *.bak
 *.backup
 *~
+
+# PDF and documentation
+*.pdf
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Custom
+2_laba.py
+.qwen/
+курс/
+семестр/
+-p/

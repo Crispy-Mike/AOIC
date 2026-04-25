@@ -276,9 +276,9 @@ class Minimization:
         var_a, var_b = self.variables
         kmap = [[0, 0], [0, 0]]
         for idx in self.true_indices:
-            a = (idx >> 1) & 1
-            b = idx & 1
-            kmap[a][b] = 1
+            bit_a = (idx >> 1) & 1
+            bit_b = idx & 1
+            kmap[bit_a][bit_b] = 1
 
         lines = ["\nКарта Карно:", f"      {var_b}=0  {var_b}=1", "  +-----------+"]
         lines.append(f"{var_a}=0 |  {kmap[0][0]}    {kmap[0][1]}")
@@ -331,10 +331,10 @@ class Minimization:
         gray_order = [0, 1, 3, 2]
 
         for idx in self.true_indices:
-            a = (idx >> 2) & 1
-            bc = idx & 3
-            col = gray_order.index(bc)
-            kmap[a][col] = 1
+            bit_a = (idx >> 2) & 1
+            bit_bc = idx & 3
+            col = gray_order.index(bit_bc)
+            kmap[bit_a][col] = 1
 
         lines = ["\nКарта Карно:", f"       {var_b}{var_c}=00  01  11  10", "   +--------------------+"]
         lines.append(f"{var_a}=0 |  {kmap[0][0]}    {kmap[0][1]}   {kmap[0][2]}   {kmap[0][3]}")
